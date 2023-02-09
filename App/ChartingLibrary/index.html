@@ -46,7 +46,7 @@
           },
         })).onChartReady(function () {
           draw2MALines();
-          updateCandleColor("#0077CC", "#000000");
+          updateCandleColor("#F25D4E", "#4231C8");
         });
       }
 
@@ -135,7 +135,7 @@
       }
 
       function updateCandleColor(upColor = "#12C479", downColor = "#F25D4E") {
-        window.tvWidget.applyStudiesOverrides({
+        window.tvWidget.applyOverrides({
           "mainSeriesProperties.candleStyle.downColor": downColor,
           "mainSeriesProperties.candleStyle.upColor": upColor,
           "mainSeriesProperties.candleStyle.borderUpColor": upColor,
