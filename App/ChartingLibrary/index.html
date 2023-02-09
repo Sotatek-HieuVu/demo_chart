@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Probit TradingView Chart</title>
+
+    <!-- Fix for iOS Safari zooming bug -->
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0"
+    />
+
+    <script
+      type="text/javascript"
+      src="charting_library/charting_library.standalone.js"
+    ></script>
+    <script type="text/javascript" src="datafeeds/udf/dist/bundle.js"></script>
+
+    <script type="text/javascript">
+      function initOnReady() {
+        const widget = (window.tvWidget = new TradingView.widget({
+          // debug: true,
+          fullscreen: true,
+          symbol: "AAPL",
+          interval: 30,
+          container: "tv_chart_container",
+          datafeed: new Datafeeds.UDFCompatibleDatafeed(
+            "https://demo-feed-data.tradingview.com"
+          ),
+          library_path: "charting_library/",
+          disabled_features: [
+            "header_widget",
+            "left_toolbar",
+            "control_bar",
+            "timeframes_toolbar",
+            "main_series_scale_menu",
+            "header_saveload",
+            "display_market_status",
+            "property_pages",
+            "symbol_info",
+            "use_localstorage_for_settings",
+          ],
+          enabled_features: ["study_templates"],
+          overrides: {
+            "scalesProperties.showStudyLastValue": false,
+            "scalesProperties.seriesLastValueMode": 1,
+          },
+        })).onChartReady(function () {
+          draw2MALines();
+          updateCandleColor("#0077CC", "#000000");
+        });
+      }
+
+      function onSocketData(data) {
+        let item;
+        if (data && typeof data !== "object") {
+          data = JSON.parse(data);
+          item = data[0];
+          item = {
+            low: Number(item.low),
+            high: Number(item.high),
+            open: Number(item.open),
+            close: Number(item.close),
+            time: new Date(item.start_time).getTime(),
+            volume: Number(item.base_volume),
+          };
+        }
+        console.log("====================================");
+        console.log("bar on socket = ", item);
+        console.log("====================================");
+        if (item !== undefined) {
+          datafeed.onRealtimeCallback(item);
+        }
+      }
+
+      function onResetData() {
+        datafeed.onResetCacheNeededCallback();
+        window.tvWidget.activeChart().resetData();
+      }
+
+      function onDataReceived(key, data) {
+        datafeed.onDataReceived(key, data);
+      }
+
+      function onInitChart(symbol, interval, theme, upColor, downColor, price) {
+        updateInterval(interval);
+        changeTheme(theme);
+        if (symbol && interval) {
+          window.tvWidget.activeChart().setSymbol(symbol, interval, () => {});
+        }
+        console.log("====================================");
+        console.log(upColor, downColor, price);
+        console.log("====================================");
+        updateCandleColor(upColor, downColor);
+        if (price) {
+          price = Number(price);
+          updatePriceScale(Number(price));
+        }
+      }
+
+      function changeTheme(theme) {
+        if (theme === "Dark") {
+          window.tvWidget.changeTheme("Dark");
+        } else {
+          window.tvWidget.changeTheme("Light");
+        }
+      }
+
+      function updateInterval(interval) {
+        if (interval) {
+          window.tvWidget.activeChart().setResolution(interval, () => {});
+        }
+      }
+
+      function draw2MALines(theme) {
+        window.tvWidget.activeChart().createStudy(
+          "Moving Average",
+          true,
+          true,
+          { length: 15 },
+          {
+            "Plot.linewidth": 1.3,
+            "Plot.color": "#FAA347",
+          }
+        );
+        window.tvWidget.activeChart().createStudy(
+          "Moving Average",
+          true,
+          true,
+          { length: 50 },
+          {
+            "Plot.linewidth": 1.3,
+            "Plot.color": "#75D7DE",
+          }
+        );
+      }
+
+      function updateCandleColor(upColor = "#12C479", downColor = "#F25D4E") {
+        window.tvWidget.applyStudiesOverrides({
+          "mainSeriesProperties.candleStyle.downColor": downColor,
+          "mainSeriesProperties.candleStyle.upColor": upColor,
+          "mainSeriesProperties.candleStyle.borderUpColor": upColor,
+          "mainSeriesProperties.candleStyle.borderDownColor": downColor,
+          "mainSeriesProperties.candleStyle.wickUpColor": upColor,
+          "mainSeriesProperties.candleStyle.wickDownColor": downColor,
+        });
+        updateVolumeColor(upColor, downColor);
+      }
+
+      function updateVolumeColor(upColor = "#12C479", downColor = "#F25D4E") {
+        console.log("====================================");
+        console.log("upColor, downColor: ", upColor, downColor);
+        console.log("====================================");
+
+        this.tvWidget.applyStudiesOverrides({
+          "volume.volume.color.0": upColor,
+          "volume.volume.color.1": downColor,
+        });
+      }
+
+      function updatePriceScale(price = 0.001) {
+        const decimal = price.countDecimals();
+
+        if (decimal === 0) {
+          window.tvWidget.applyOverrides({
+            "mainSeriesProperties.minTick": `1,1,false`,
+          });
+          return;
+        }
+
+        let priceScale = "1";
+        for (let i = 0; i < decimal; i++) {
+          priceScale += "0";
+        }
+        window.tvWidget.applyOverrides({
+          "mainSeriesProperties.minTick": `${priceScale},1,false`,
+        });
+      }
+
+      Number.prototype.countDecimals = function () {
+        if (Math.floor(this.valueOf()) === this.valueOf()) return 0;
+
+        var str = this.toString();
+        if (str.indexOf(".") !== -1 && str.indexOf("-") !== -1) {
+          return str.split("-")[1] || 0;
+        } else if (str.indexOf(".") !== -1) {
+          return str.split(".")[1].length || 0;
+        }
+        return str.split("-")[1] || 0;
+      };
+
+      window.addEventListener("DOMContentLoaded", initOnReady, false);
+    </script>
+  </head>
+
+  <body style="margin: 0px">
+    <div id="tv_chart_container"></div>
+  </body>
+</html>
